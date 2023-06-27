@@ -6,6 +6,7 @@ import android.content.Context
 import android.graphics.ImageFormat
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.*
+import android.hardware.camera2.CameraMetadata.CONTROL_AE_MODE_ON_ALWAYS_FLASH
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
 import android.media.Image
@@ -87,8 +88,25 @@ class CameraService(private val context: Context)  {
         // 0 : 후면(Back) 1:전면(Front) ##기기마다 설정값이 다를 수 있음##
         cameraId = cameraManager.cameraIdList[param.lensPosition]
 
+
+
+        for((position, id) in cameraManager.cameraIdList.withIndex()){
+            val character = cameraManager.getCameraCharacteristics(id)
+            val isUse = character.get(CameraCharacteristics.FLASH_INFO_AVAILABLE)
+            Log.e("tag", "flash [$position] $isUse")
+        }
         characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)?.let{
-            it.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_RAW)
+            for(dataIndex in it){
+                Log.d("characteristics"," ## dataIndex :${dataIndex} ##")
+            }
+
+            Log.d("characteristics"," ## RAW :${it.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_RAW)} ##")
+//            Log.d("characteristics"," ## BURST Capture ${it.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_BURST_CAPTURE)} ##")
+//            Log.d("characteristics"," ## MANUAL_SENSOR ${it.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_MANUAL_SENSOR)} ##")
+//            Log.d("characteristics"," ## YUV_REPROCESSING ${it.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_YUV_REPROCESSING)} ##")
+//            Log.d("characteristics"," ## MANUAL_SENSOR ${it.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_SYSTEM_CAMERA)} ##")
+//            Log.d("characteristics"," ## MOTION_TRACKING ${it.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_MOTION_TRACKING)} ##")
+
         }
 //        characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_RAW)
 
@@ -96,20 +114,29 @@ class CameraService(private val context: Context)  {
             val previewSize = it.getOutputSizes(SurfaceTexture::class.java) //
             // Raw 데이터 output 사이즈를 확인하는 부분
             val rawSize = it.getOutputSizes(ImageFormat.RAW_SENSOR)
-//            for(size in rawSize){
-//                Log.d("LOG_CAMERA"," rawSize : ${size}")
-//            }
+            if(rawSize != null){
+                for(size in rawSize){
+                    Log.d("LOG_CAMERA"," rawSize : ${size}")
+                }
+            }else{
+                Log.d("LOG_CAMERA"," rawSize is null")
+            }
+
             Log.d("LOG_CAMERA"," ## Camera OPEN Success ##")
             cameraManager.openCamera(cameraId, context.mainExecutor, deviceStateCallback)
         }
     }
 
     fun createCaptureRequest(){
-
         cameraDevice?.let{ cameraDevice ->
             // Camera Preview Setting
-            previewBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+            previewBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
             previewBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, param.defaultFps)
+            previewBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
+            previewBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+            previewBuilder.set(CaptureRequest.CONTROL_AE_MODE, CONTROL_AE_MODE_ON_ALWAYS_FLASH)
+
+
             previewBuilder.addTarget(param.previewSurface)
             previewCaptureRequest = previewBuilder.build()
 
@@ -197,16 +224,13 @@ class CameraService(private val context: Context)  {
                 }catch (e:Exception){
                     e.printStackTrace()
                 }
-
             }
-
         }
 
         override fun onConfigureFailed(session: CameraCaptureSession) {
             cameraCaptureSession = null
             cameraExecutor.shutdown()
         }
-
     }
 
     private val imageReaderListener = ImageReader.OnImageAvailableListener { imageReader->

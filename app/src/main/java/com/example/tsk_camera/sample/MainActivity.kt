@@ -38,7 +38,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
                     cameraService.openCamera(
                         width = 1920,
                         height = 1080,
-                        lensPosition = 0/*BackCamera : 0*/,
+                        lensPosition = 4/*BackCamera : 0*/,
                         surface =  it.surface)
                 }
             }
